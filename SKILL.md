@@ -2,9 +2,11 @@
 name: code-reviewer
 description: |
   Review code changes against platform-specific rules (Android/iOS) plus shared general rules.
-  Supports: uncommitted changes, staged changes, specific commits, commit ranges, and branch diffs.
+  Supports: uncommitted changes, staged changes, specific commits, commit ranges, branch diffs,
+  and remote PR review via GitHub URL.
   Optionally generates a styled HTML report. Use when user mentions: "review", "code review",
-  "帮我看看代码", "check my changes", provides a commit hash, or asks to review before committing.
+  "帮我看看代码", "check my changes", provides a commit hash, pastes a GitHub PR URL,
+  or asks to review before committing.
   Auto-detects platform (Android/iOS/General) from project markers.
 ---
 
@@ -60,11 +62,27 @@ Detect from user message. Priority order:
 | "review \<sha1\>..\<sha2\>" | Commit range | `git diff <sha1>..<sha2>` |
 | "review branch \<name\>" | Branch vs main/master | `git diff main...<name>` |
 | "review last N commits" | Recent N commits | `git diff HEAD~N..HEAD` |
+| `https://github.com/*/pull/*` 或类似 GitHub PR URL | 远程 PR 的 diff | 见 Step 2a |
+| `https://gitlab.com/*/-/merge_requests/*` 等 PR/MR URL | 远程 PR/MR 的 diff | 见 Step 2a |
+| `review pr` + PR URL | 远程 PR 的 diff | 见 Step 2a |
 
 If scope is ambiguous, default to **uncommitted changes** — this is the most common use case.
 
-### 2. Resolve repo
+**PR URL detection**: A URL matching `github.com/*/pull/*`, `gitlab.com/*/-/merge_requests/*`, or similar code hosting platform PR/MR pattern is treated as a remote review scope.
 
+### 2. Resolve repo or remote PR
+
+If the scope is a PR URL (remote review):
+1. Parse the URL to extract: platform (`github` / `gitlab`), owner, repo, PR number
+2. Fetch the diff:
+   - GitHub: `web_fetch("https://github.com/{owner}/{repo}/pull/{number}.diff")`
+   - GitLab: `web_fetch("https://gitlab.com/{owner}/{repo}/-/{merge_requests}/{number}.diff")`
+3. Fetch PR context (title, description, changed files list):
+   `web_fetch("https://github.com/{owner}/{repo}/pull/{number}")` — extract from the rendered page
+4. Record the repo name from URL for the output header
+5. Skip git repo validation — proceed directly to Step 4 (Pre-flight checks)
+
+If the scope is NOT a PR URL (local review):
 Use current working directory. Validate:
 ```bash
 git rev-parse --show-toplevel 2>/dev/null
@@ -101,7 +119,9 @@ Check repo root for markers (in order). If multiple match, choose the first matc
 For each changed file, beyond the diff itself:
 - Read the **full function/method** surrounding each change (not just diff lines)
 - If a public API signature changed, search for callers: `git grep "<function_name>"` to assess impact
-- Check the commit message for intent — findings should be about **bugs**, not about **disagreeing with the approach**
+- Check the commit message / PR description for intent — findings should be about **bugs**, not about **disagreeing with the approach**
+
+**For remote PR review only:** also extract the PR description (it's available from the context fetched in Step 2). Use it to understand the broader motivation beyond individual commit messages.
 
 ### 6. Three-pass review
 
@@ -188,6 +208,15 @@ In this pass, you may report findings that span multiple files (e.g. "similar bu
 ...
 
 **Summary**: 2 P0 / 3 P1 / 1 P2 — Fix P0 before merge.
+```
+
+**For remote PR review only:** after the findings, also include:
+
+```markdown
+### 👥 对 Reviewer 的建议
+这个 PR 的核心改动是 [一句话总结]。Review 时重点关注：
+- [文件A] — [风险/亮点简述]
+- [文件B] — [风险/亮点简述]
 ```
 
 **Optional: HTML report** — only when user asks ("生成报告", "generate report", "HTML"):
