@@ -32,6 +32,10 @@ Read from `references/` relative to this skill directory. Always load general + 
 - `references/review-android.md` — Android (Kotlin/Java)
 - `references/review-ios.md` — iOS (ObjC/Swift)
 
+**Auto-detect additional rules:**
+- If the diff contains `SKILL.md`, `*.skill.md`, `.mdc`, or `.agent.md` files → also load `references/review-skill-vetter.md`
+- If the user explicitly requests "skill review", "agent review", or "安全审查" → also load `references/review-skill-vetter.md` even without matching files in diff
+
 ## Severity Definitions (hard rules)
 
 | Level | Criteria | Action |
@@ -69,13 +73,15 @@ If not a git repo, ask user for path.
 
 ### 3. Detect platform
 
-Check repo root for markers (in order):
+Check repo root for markers (in order). If multiple match, choose the first match in priority order:
 
 | Platform | Markers (any match) |
 |----------|-------------------|
 | iOS | `*.xcodeproj`, `*.xcworkspace`, `Podfile`, `Package.swift` |
 | Android | `build.gradle*`, `settings.gradle*`, `AndroidManifest.xml`, `gradlew` |
 | General | Neither matches |
+
+**Additionally**, check if any changed file in the diff is a skill/agent file (`SKILL.md`, `*.skill.md`, `.mdc`, `.agent.md`) — if so, auto-load `review-skill-vetter.md` as an extra rule set regardless of platform.
 
 ### 4. Pre-flight checks
 
@@ -97,11 +103,36 @@ For each changed file, beyond the diff itself:
 - If a public API signature changed, search for callers: `git grep "<function_name>"` to assess impact
 - Check the commit message for intent — findings should be about **bugs**, not about **disagreeing with the approach**
 
-### 6. Load rules & review
+### 6. Three-pass review
 
-Read `references/review-general.md` + platform-specific file.
+Read `references/review-general.md` + platform-specific file + any auto-detected rule files.
 
-Apply rules to each changed file. For every finding, include ALL fields:
+Work through the code in three passes, in order. Each pass has a different focus. Do NOT skip or merge passes.
+
+---
+
+#### Pass A — First Look (High-level structure, ~2-3 minutes)
+
+Goal: understand the change as a whole before diving into details.
+
+- Read the commit message / PR description for intent
+- Scan the file list — does the change scope make sense?
+- Check overall approach — is this the right solution to the problem?
+- Identify risky areas: API changes, shared mutable state, external boundaries
+- **Do NOT** report any findings yet — this pass is mental preparation
+
+---
+
+#### Pass B — Line-by-Line Detail (Main bulk of review)
+
+Goal: apply rules to each changed file, find concrete issues.
+
+For each file, in order of the diff:
+1. Read the full function/method/block surrounding each change (not just the diff lines)
+2. Apply the relevant rule dimensions to that specific change
+3. If a public API signature changed, search for callers: `git grep "<function_name>"`
+
+For every finding, include ALL fields:
 
 | Field | Description |
 |-------|-------------|
@@ -110,7 +141,7 @@ Apply rules to each changed file. For every finding, include ALL fields:
 | file | File path |
 | line | Line number or range |
 | dimension | Category (e.g. 线程安全, 内存管理, 逻辑正确性) |
-| rule_source | `general` / `android` / `ios` |
+| rule_source | `general` / `android` / `ios` / `skill-vetter` |
 | problem | What's wrong and why it matters |
 | code | **Exact** original lines from diff (non-empty) |
 | code_lang | Language identifier |
@@ -121,7 +152,20 @@ Apply rules to each changed file. For every finding, include ALL fields:
 **Quality rules:**
 - Don't report issues in unchanged code (unless the change directly breaks it)
 - Don't suggest "might want to consider..." — every finding must be a concrete problem
-- If no issues found, say so. Empty review is a valid result.
+- If no issues found for a file, move on. Empty review for a file is valid.
+
+---
+
+#### Pass C — Hardening & Edge Cases (~5 minutes)
+
+Goal: catch what line-by-line might miss — cross-file concerns and edge paths.
+
+- **Boundary values**: empty arrays, zero, null, max values, edge-case inputs
+- **Concurrency safety**: shared mutable state across files, async timing assumptions
+- **Error path completeness**: every execution path should reach a callback / error handler
+- **Caller impact**: if a signature/data structure changed, are all callers updated? (Check with `git grep`)
+
+In this pass, you may report findings that span multiple files (e.g. "similar bug pattern found in 3 files").
 
 ### 7. Output
 
@@ -167,6 +211,14 @@ When user says "security review" or "安全审查", apply stricter lens:
 - Focus on OWASP Top 10, injection, auth bypass, secrets exposure
 - Ignore style/naming issues entirely
 - All security findings are P0 or P1, never P2
+
+### Agent Skill Review
+When the diff contains `SKILL.md`, `*.skill.md`, `.mdc`, or `.agent.md` files, **automatically** enable Agent Skill Review:
+- Load `references/review-skill-vetter.md` as an additional rule set
+- Check for prompt injection risks, token/secret exposure, excessive permissions, unsafe tool calls
+- Apply skill-vetter's red flag checklist
+
+Also trigger this mode when user says "skill review", "agent review", "skill-vetter", or "审查技能".
 
 ### Quick Review
 When user says "quick review" or "快速看看":
