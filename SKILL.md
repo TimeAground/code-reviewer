@@ -4,7 +4,7 @@ description: |
   Review code changes against platform-specific rules (Android/iOS) plus shared general rules.
   Supports: uncommitted changes, staged changes, specific commits, commit ranges, branch diffs,
   and remote PR review via GitHub URL.
-  Optionally generates a styled HTML report. Use when user mentions: "review", "code review",
+  Use when user mentions: "review", "code review",
   "帮我看看代码", "check my changes", provides a commit hash, pastes a GitHub PR URL,
   or asks to review before committing.
   Auto-detects platform (Android/iOS/General) from project markers.
@@ -50,6 +50,16 @@ When uncertain between two levels, choose the **lower** severity (less alarm).
 
 ## Workflow
 
+### 0. Activation guard
+
+Before activating, confirm the user is in a development/review context:
+
+- **In a git repo**: `git rev-parse --show-toplevel` succeeds → proceed to scope detection
+- **Not in a git repo but user explicitly asked for code review** (e.g. "review this snippet", pasted code) → proceed with the provided code
+- **Neither**: respond "I can help review code in a git repository. Share the code you'd like me to review." — do not inspect any files
+
+Bare keywords like "review" alone are NOT sufficient to activate in non-repo contexts.
+
 ### 1. Determine review scope
 
 Detect from user message. Priority order:
@@ -66,7 +76,7 @@ Detect from user message. Priority order:
 | `https://gitlab.com/*/-/merge_requests/*` 等 PR/MR URL | 远程 PR/MR 的 diff | 见 Step 2a |
 | `review pr` + PR URL | 远程 PR 的 diff | 见 Step 2a |
 
-If scope is ambiguous, default to **uncommitted changes** — this is the most common use case.
+If scope is ambiguous, ask the user to clarify — never default to scanning uncommitted changes without explicit direction.
 
 **PR URL detection**: A URL matching `github.com/*/pull/*`, `gitlab.com/*/-/merge_requests/*`, or similar code hosting platform PR/MR pattern is treated as a remote review scope.
 
@@ -189,6 +199,8 @@ In this pass, you may report findings that span multiple files (e.g. "similar bu
 
 ### 7. Output
 
+**Output language**: Detect from the user's conversation language and system locale. Default to English if detection is ambiguous. Dimension names in rule files are internal labels; translate them to the output language when presenting findings.
+
 **Default: Terminal markdown** — print directly in chat:
 
 ```markdown
@@ -196,7 +208,7 @@ In this pass, you may report findings that span multiple files (e.g. "similar bu
 **Scope**: <description>  |  **Platform**: Android  |  **Files**: 12  |  **+247 / -89**
 
 ### P0 · Must Fix (2)
-#### 1. [线程安全] ConcurrentModificationException risk
+#### 1. [Thread Safety] ConcurrentModificationException risk
 📄 `app/src/.../ViewModel.kt:45-52`
 **Problem**: ...
 **Fix**: ...
@@ -210,25 +222,10 @@ In this pass, you may report findings that span multiple files (e.g. "similar bu
 **Summary**: 2 P0 / 3 P1 / 1 P2 — Fix P0 before merge.
 ```
 
-**For remote PR review only:** after the findings, also include:
+**For remote PR review only:** after the findings, also include a section with suggestions for the PR reviewer, in the same language as the rest of the output.
 
-```markdown
-### 👥 对 Reviewer 的建议
-这个 PR 的核心改动是 [一句话总结]。Review 时重点关注：
-- [文件A] — [风险/亮点简述]
-- [文件B] — [风险/亮点简述]
-```
+The English version of the example output replaces the Chinese example. Localize dimension, severity, and suggestion labels to match the output language.
 
-**Optional: HTML report** — only when user asks ("生成报告", "generate report", "HTML"):
-```bash
-TS=$(date +%Y%m%d_%H%M%S)
-REPORT_DIR="<repo_path>/.code-reviews"
-mkdir -p "$REPORT_DIR"
-python3 <skill_dir>/scripts/render_report.py "$JSON" "$REPORT_DIR/review_${TS}.html"
-open "$REPORT_DIR/review_${TS}.html"
-```
-
-Add `.code-reviews/` to `.gitignore` if not already there.
 
 ## Review Modes
 
@@ -268,9 +265,9 @@ has a test directory, mention it as P2 (not a finding, just a note at the end).
 
 ## Safety
 
-- **Read-only**: Never modify repo code. Only create `.code-reviews/` for reports.
-- **No destructive git**: Never reset, clean, force-push, or amend.
+- **Read-only**: Never modify repo code, create files, or run destructive git commands.
 - **Conservative severity**: When unsure, choose lower severity. False P0 alarms erode trust.
+- **Data disclosure**: This skill sends code diffs to the AI model for analysis. Do not review repositories containing secrets, credentials, or other sensitive data that should not leave the local machine.
 
 ## Next Steps
 
@@ -281,8 +278,7 @@ After every review, always end with a **Next Steps** section offering these opti
 **Next Steps**
 1. 📋 **Discuss** — Walk through findings one by one, I'll explain each issue and suggest fixes
 2. 🔨 **Fix now** — Tell me which issues to fix, I'll generate the corrected code
-3. 📄 **HTML report** — Generate a formatted report saved to `.code-reviews/`
-4. ✅ **All good** — No action needed
+3. ✅ **All good** — No action needed
 ```
 
 If the user is operating through a sub-agent or coding assistant (e.g., Claude Code, Copilot), omit Next Steps and output only the review findings.

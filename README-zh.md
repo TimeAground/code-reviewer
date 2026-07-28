@@ -161,20 +161,7 @@ review branch feature-x   # 分支与 main 的对比
 - **大 diff 保护**：变更超过 5000 行 → 提前提示再确认
 - **自动过滤**：跳过生成文件、二进制文件、lock 文件、vendor 目录
 
----
 
-## HTML 报告
-
-```
-review, generate HTML report
-```
-
-保存到 `.code-reviews/` 并自动在浏览器打开。报告特性：
-- 深色主题
-- P0/P1/P2 过滤切换
-- 每条问题含前后代码对比
-
-> 建议把 `.code-reviews/` 加入 `.gitignore`。
 
 ---
 
@@ -183,12 +170,10 @@ review, generate HTML report
 ```
 code-reviewer/
 ├── SKILL.md                    # AI Agent 指令文件
-├── references/
-│   ├── review-general.md       # 通用审查规则（7 个维度）
-│   ├── review-android.md       # Android 专项规则（9 个维度）
-│   └── review-ios.md           # iOS 专项规则（9 个维度）
-└── scripts/
-    └── render_report.py        # HTML 报告渲染器（JSON → 独立 HTML）
+└── references/
+    ├── review-general.md       # 通用审查规则（7 个维度）
+    ├── review-android.md       # Android 专项规则（9 个维度）
+    └── review-ios.md           # iOS 专项规则（9 个维度）
 ```
 
 ---

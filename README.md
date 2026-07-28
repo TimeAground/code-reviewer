@@ -128,27 +128,17 @@ review branch feature-x   # Branch diff vs main
 - **Large diff protection** — 5000+ lines → warns before proceeding
 - **Auto-filtered files** — Skips generated code, binaries, lock files, vendor dirs
 
-## 📄 HTML Reports
 
-```
-review, generate HTML report
-```
-
-Saves to `.code-reviews/` and opens in browser. Includes dark theme, P0/P1/P2 filtering, and per-finding code diffs.
-
-> **Tip:** Add `.code-reviews/` to your `.gitignore`.
 
 ## 🏗 Architecture
 
 ```
 code-reviewer/
 ├── SKILL.md                    # AI agent instructions
-├── references/
-│   ├── review-general.md       # General review rules (7 dimensions)
-│   ├── review-android.md       # Android-specific rules (9 dimensions)
-│   └── review-ios.md           # iOS-specific rules (9 dimensions)
-└── scripts/
-    └── render_report.py        # HTML report renderer (JSON → standalone HTML)
+└── references/
+    ├── review-general.md       # General review rules (7 dimensions)
+    ├── review-android.md       # Android-specific rules (9 dimensions)
+    └── review-ios.md           # iOS-specific rules (9 dimensions)
 ```
 
 ## Requirements
