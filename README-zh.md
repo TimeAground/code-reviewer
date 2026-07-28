@@ -171,9 +171,12 @@ review branch feature-x   # 分支与 main 的对比
 code-reviewer/
 ├── SKILL.md                    # AI Agent 指令文件
 └── references/
-    ├── review-general.md       # 通用审查规则（7 个维度）
+    ├── review-general.md       # 通用审查规则
     ├── review-android.md       # Android 专项规则（9 个维度）
-    └── review-ios.md           # iOS 专项规则（9 个维度）
+    ├── review-ios.md           # iOS 专项规则（9 个维度）
+    ├── review-typescript.md    # TypeScript 专项规则（7 个维度）
+    ├── review-go.md            # Go 专项规则（7 个维度）
+    └── review-skill-vetter.md  # Agent/Skill 安全审查规则
 ```
 
 ---
@@ -196,6 +199,11 @@ code-reviewer/
 实际经验：工具输出一长串问题时，reviewer 往往从上到下看，把精力花在不紧要的命名问题上，反而忽略了真正会引发崩溃的线程问题。分级让人先处理最重要的事。
 
 ---
+
+## 反馈
+
+发现 bug 或有新语言需求？
+[提交 Issue →](https://github.com/TimeAground/code-reviewer/issues)
 
 ## 许可证
 

@@ -1,13 +1,13 @@
 ---
 name: code-reviewer
 description: |
-  Review code changes against platform-specific rules (Android/iOS) plus shared general rules.
-  Supports: uncommitted changes, staged changes, specific commits, commit ranges, branch diffs,
-  and remote PR review via GitHub URL.
+  Review code against platform-specific rules (Android/iOS), language-specific rules
+  (TypeScript, Go), and general engineering rules. Supports uncommitted changes, staged
+  changes, specific commits, commit ranges, branch diffs, and remote PR review via URL.
   Use when user mentions: "review", "code review",
   "帮我看看代码", "check my changes", provides a commit hash, pastes a GitHub PR URL,
   or asks to review before committing.
-  Auto-detects platform (Android/iOS/General) from project markers.
+  Auto-detects platform (iOS/Android/General) and language (TypeScript/Go) from diff.
 ---
 
 # Code Reviewer
@@ -34,7 +34,11 @@ Read from `references/` relative to this skill directory. Always load general + 
 - `references/review-android.md` — Android (Kotlin/Java)
 - `references/review-ios.md` — iOS (ObjC/Swift)
 
-**Auto-detect additional rules:**
+**Language-specific rules (auto-detected from diff, additive):**
+- `.ts` / `.tsx` files in diff → also load `references/review-typescript.md`
+- `.go` files in diff → also load `references/review-go.md`
+
+**Skill-vetter rules (auto-detected from diff or explicit request):**
 - If the diff contains `SKILL.md`, `*.skill.md`, `.mdc`, or `.agent.md` files → also load `references/review-skill-vetter.md`
 - If the user explicitly requests "skill review", "agent review", or "安全审查" → also load `references/review-skill-vetter.md` even without matching files in diff
 
@@ -99,9 +103,9 @@ git rev-parse --show-toplevel 2>/dev/null
 ```
 If not a git repo, ask user for path.
 
-### 3. Detect platform
+### 3. Detect platform & language
 
-Check repo root for markers (in order). If multiple match, choose the first match in priority order:
+Check repo root for platform markers (in order, first match wins):
 
 | Platform | Markers (any match) |
 |----------|-------------------|
@@ -109,7 +113,11 @@ Check repo root for markers (in order). If multiple match, choose the first matc
 | Android | `build.gradle*`, `settings.gradle*`, `AndroidManifest.xml`, `gradlew` |
 | General | Neither matches |
 
-**Additionally**, check if any changed file in the diff is a skill/agent file (`SKILL.md`, `*.skill.md`, `.mdc`, `.agent.md`) — if so, auto-load `review-skill-vetter.md` as an extra rule set regardless of platform.
+Then scan the diff for language-specific files. Language detection is **additive** (not mutually exclusive):
+- Any `.ts` / `.tsx` file in diff → TypeScript mode
+- Any `.go` file in diff → Go mode
+
+If the diff contains `SKILL.md`, `*.skill.md`, `.mdc`, or `.agent.md` files → also auto-load `review-skill-vetter.md` as an extra rule set regardless of platform.
 
 ### 4. Pre-flight checks
 
@@ -282,3 +290,8 @@ After every review, always end with a **Next Steps** section offering these opti
 ```
 
 If the user is operating through a sub-agent or coding assistant (e.g., Claude Code, Copilot), omit Next Steps and output only the review findings.
+
+## Feedback
+
+Found a bug, have a suggestion, or want a new language covered?
+Open an issue → [github.com/TimeAground/code-reviewer/issues](https://github.com/TimeAground/code-reviewer/issues)
